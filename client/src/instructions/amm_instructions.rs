@@ -24,9 +24,9 @@ pub fn initialize_pool_instr(
     create_pool_fee: Pubkey,
     init_amount_0: u64,
     init_amount_1: u64,
-    open_time: u64,
 ) -> Result<Vec<Instruction>> {
     let payer = read_keypair_file(&config.payer_path)?;
+    let pubkey = payer.pubkey();
     let url = Cluster::Custom(config.http_url.clone(), config.ws_url.clone());
     // Client.
     let client = Client::new(url, Rc::new(payer));
@@ -44,7 +44,7 @@ pub fn initialize_pool_instr(
             amm_config_key.to_bytes().as_ref(),
             token_0_mint.to_bytes().as_ref(),
             token_1_mint.to_bytes().as_ref(),
-            payer.pubkey().to_bytes().as_ref(),
+            pubkey.to_bytes().as_ref(),
         ],
         &program.id(),
     );
@@ -110,7 +110,6 @@ pub fn initialize_pool_instr(
         .args(raydium_cp_instructions::Initialize {
             init_amount_0,
             init_amount_1,
-            open_time,
         })
         .instructions()?;
     Ok(instructions)

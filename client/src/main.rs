@@ -91,8 +91,6 @@ pub enum RaydiumCpCommands {
         mint1: Pubkey,
         init_amount_0: u64,
         init_amount_1: u64,
-        #[arg(short, long, default_value_t = 0)]
-        open_time: u64,
     },
     Deposit {
         pool_id: Pubkey,
@@ -148,7 +146,6 @@ fn main() -> Result<()> {
             mint1,
             init_amount_0,
             init_amount_1,
-            open_time,
         } => {
             let (mint0, mint1, init_amount_0, init_amount_1) = if mint0 > mint1 {
                 (mint1, mint0, init_amount_1, init_amount_0)
@@ -171,7 +168,6 @@ fn main() -> Result<()> {
                 raydium_cp_swap::create_pool_fee_reveiver::id(),
                 init_amount_0,
                 init_amount_1,
-                open_time,
             )?;
 
             let signers = vec![&payer];
