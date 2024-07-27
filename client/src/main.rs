@@ -4,7 +4,12 @@ use anyhow::{format_err, Result};
 use arrayref::array_ref;
 use clap::Parser;
 use configparser::ini::Ini;
+use raydium_cp_swap::accounts as raydium_cp_accounts;
+use raydium_cp_swap::instruction as raydium_cp_instructions;
+
+use raydium_cp_swap::states::AMM_CONFIG_SEED;
 use solana_client::{rpc_client::RpcClient, rpc_config::RpcTransactionConfig};
+use solana_sdk::system_program;
 use solana_sdk::{
     commitment_config::CommitmentConfig,
     pubkey::Pubkey,
@@ -86,6 +91,8 @@ pub struct Opts {
 
 #[derive(Debug, Parser)]
 pub enum RaydiumCpCommands {
+    InitializeConfig {
+    },
     InitializePool {
         mint0: Pubkey,
         mint1: Pubkey,
@@ -174,6 +181,50 @@ fn main() -> Result<()> {
             let recent_hash = rpc_client.get_latest_blockhash()?;
             let txn = Transaction::new_signed_with_payer(
                 &initialize_pool_instr,
+                Some(&payer.pubkey()),
+                &signers,
+                recent_hash,
+            );
+            let signature = send_txn(&rpc_client, &txn, true)?;
+            println!("{}", signature);
+        }
+
+        RaydiumCpCommands::InitializeConfig {
+        } => {
+            let config = pool_config;
+            let payer = read_keypair_file(&config.payer_path)?;
+            let pubkey = read_keypair_file(&config.payer_path)?.pubkey();
+            let url = Cluster::Custom(config.http_url.clone(), config.ws_url.clone());
+            // Client.
+            let client = Client::new(url, Rc::new(read_keypair_file(&config.payer_path)?));
+            let program = client.program(config.raydium_cp_program)?;
+        
+            let amm_config_index = 0u16;
+            let (amm_config_key, __bump) = Pubkey::find_program_address(
+                &[AMM_CONFIG_SEED.as_bytes(), &amm_config_index.to_be_bytes()],
+                &program.id(),
+            );
+        
+            let instructions = program
+                .request()
+                .accounts(raydium_cp_accounts::CreateAmmConfig {
+                    amm_config: amm_config_key,
+                    owner: pubkey,
+                    system_program: system_program::id(),
+                    
+                })
+                .args(raydium_cp_instructions::CreateAmmConfig {
+                    index:0,
+                    trade_fee_rate:20000,protocol_fee_rate:120000,fund_fee_rate:40000,
+                    create_pool_fee: 0
+                    
+                })
+                .instructions()?;
+
+            let signers = vec![&payer];
+            let recent_hash = rpc_client.get_latest_blockhash()?;
+            let txn = Transaction::new_signed_with_payer(
+                &instructions,
                 Some(&payer.pubkey()),
                 &signers,
                 recent_hash,
