@@ -176,7 +176,6 @@ fn main() -> Result<()> {
                 init_amount_0,
                 init_amount_1,
             )?;
-
             let signers = vec![&payer];
             let recent_hash = rpc_client.get_latest_blockhash()?;
             let txn = Transaction::new_signed_with_payer(

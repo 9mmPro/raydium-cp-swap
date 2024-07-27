@@ -7,7 +7,7 @@ use crate::utils::*;
 use anchor_lang::{
     accounts::interface_account::InterfaceAccount,
     prelude::*,
-    solana_program::{clock, program::invoke, system_instruction},
+    solana_program::clock
 };
 use anchor_spl::{
     associated_token::AssociatedToken,
@@ -128,13 +128,6 @@ pub struct Initialize<'info> {
     )]
     pub token_1_vault: UncheckedAccount<'info>,
 
-    /// create pool fee account
-    #[account(
-        mut,
-        address= crate::create_pool_fee_reveiver::id(),
-    )]
-    pub create_pool_fee: Box<InterfaceAccount<'info, TokenAccount>>,
-
     /// an account to store oracle observations
     #[account(
         init,
@@ -171,9 +164,6 @@ pub fn initialize(ctx: Context<Initialize>, init_amount_0: u64, init_amount_1: u
     }
     {
         initialize_pool_state(&ctx, init_amount_0, init_amount_1)?;
-    }
-    {
-        charge_create_pool_fee(&ctx)?;
     }
     Ok(())
 }
@@ -297,30 +287,3 @@ fn mint_initial_lp_tokens(ctx: &Context<Initialize>, liquidity: u64) -> Result<(
     )
 }
 
-fn charge_create_pool_fee(ctx: &Context<Initialize>) -> Result<()> {
-    if ctx.accounts.amm_config.create_pool_fee != 0 {
-        invoke(
-            &system_instruction::transfer(
-                ctx.accounts.creator.key,
-                &ctx.accounts.create_pool_fee.key(),
-                u64::from(ctx.accounts.amm_config.create_pool_fee),
-            ),
-            &[
-                ctx.accounts.creator.to_account_info(),
-                ctx.accounts.create_pool_fee.to_account_info(),
-                ctx.accounts.system_program.to_account_info(),
-            ],
-        )?;
-        invoke(
-            &spl_token::instruction::sync_native(
-                ctx.accounts.token_program.key,
-                &ctx.accounts.create_pool_fee.key(),
-            )?,
-            &[
-                ctx.accounts.token_program.to_account_info(),
-                ctx.accounts.create_pool_fee.to_account_info(),
-            ],
-        )?;
-    }
-    Ok(())
-}
